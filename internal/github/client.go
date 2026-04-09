@@ -1,40 +1,54 @@
 package github
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
-	"strings"
 	"time"
+
+	"github-release-notifier/internal/metrics" // ДОДАНО
+	"github.com/redis/go-redis/v9"
 )
 
-// Client — це структура клієнта для GitHub API
+// Client - структура клієнта для роботи з GitHub API та Redis
 type Client struct {
-	httpClient *http.Client
 	token      string
+	httpClient *http.Client
+	rdb        *redis.Client
 }
 
 // NewClient створює новий екземпляр клієнта
-func NewClient(token string) *Client {
+func NewClient(token string, rdb *redis.Client) *Client {
 	return &Client{
+		token: token,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
-		token: token,
+		rdb: rdb,
 	}
 }
 
-// ValidateRepo перевіряє правильність формату (owner/repo) та існування репозиторію
-func (c *Client) ValidateRepo(repoName string) (int, error) {
-	parts := strings.Split(repoName, "/")
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return http.StatusBadRequest, fmt.Errorf("неправильний формат, очікується owner/repo")
+// CheckRepoExists перевіряє чи існує репозиторій (з використанням Redis кешу)
+func (c *Client) CheckRepoExists(ctx context.Context, owner, repo string) (bool, error) {
+	// 1. Формуємо унікальний ключ для кешу
+	cacheKey := fmt.Sprintf("repo_exists:%s/%s", owner, repo)
+
+	// 2. Шукаємо в Redis
+	val, err := c.rdb.Get(ctx, cacheKey).Result()
+	if err == nil {
+		log.Printf("Cache HIT! Репозиторій %s/%s знайдено в пам'яті", owner, repo)
+		return val == "true", nil
 	}
 
-	url := fmt.Sprintf("https://api.github.com/repos/%s", repoName)
-	req, err := http.NewRequest("GET", url, nil)
+	// 3. Якщо в кеші немає — ідемо в GitHub
+	log.Printf("Cache MISS. Робимо запит в GitHub для %s/%s...", owner, repo)
+
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s", owner, repo)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		return http.StatusInternalServerError, err
+		return false, err
 	}
 
 	if c.token != "" {
@@ -43,34 +57,34 @@ func (c *Client) ValidateRepo(repoName string) (int, error) {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return http.StatusInternalServerError, err
+		metrics.GitHubAPICalls.WithLabelValues("error").Inc() // ДОДАНО
+		return false, err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusForbidden {
-		return http.StatusTooManyRequests, fmt.Errorf("перевищено ліміт запитів до GitHub API")
+	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests {
+		metrics.GitHubAPICalls.WithLabelValues("rate_limited").Inc() // ДОДАНО
+		return false, fmt.Errorf("досягнуто ліміт запитів GitHub API")
 	}
 
-	if resp.StatusCode == http.StatusNotFound {
-		return http.StatusNotFound, fmt.Errorf("репозиторій не знайдено на GitHub")
-	}
+	metrics.GitHubAPICalls.WithLabelValues("success").Inc() // ДОДАНО
+	exists := resp.StatusCode == http.StatusOK
 
-	if resp.StatusCode != http.StatusOK {
-		return resp.StatusCode, fmt.Errorf("неочікувана помилка від GitHub: %d", resp.StatusCode)
-	}
+	// 4. Записуємо результат в Redis на 10 хвилин
+	c.rdb.Set(ctx, cacheKey, fmt.Sprintf("%t", exists), 10*time.Minute)
 
-	return http.StatusOK, nil
+	return exists, nil
 }
 
-// ReleaseData - структура для парсингу відповіді з релізом
-type ReleaseData struct {
+// Release - структура для парсингу відповіді з релізом
+type Release struct {
 	TagName string `json:"tag_name"`
 }
 
-// GetLatestRelease дістає останній тег релізу
-func (c *Client) GetLatestRelease(repoName string) (string, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", repoName)
-	req, err := http.NewRequest("GET", url, nil)
+// GetLatestRelease отримує останній реліз репозиторію
+func (c *Client) GetLatestRelease(ctx context.Context, owner, repo string) (string, error) {
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", owner, repo)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return "", err
 	}
@@ -81,22 +95,32 @@ func (c *Client) GetLatestRelease(repoName string) (string, error) {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		metrics.GitHubAPICalls.WithLabelValues("error").Inc() // ДОДАНО (тут теж корисно рахувати)
 		return "", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return "", nil
+		metrics.GitHubAPICalls.WithLabelValues("success").Inc() // ДОДАНО
+		return "", nil                                          // Релізів ще немає
+	}
+
+	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests {
+		metrics.GitHubAPICalls.WithLabelValues("rate_limited").Inc() // ДОДАНО
+		return "", fmt.Errorf("досягнуто ліміт запитів GitHub API")
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("помилка отримання релізу: %d", resp.StatusCode)
+		metrics.GitHubAPICalls.WithLabelValues("error").Inc() // ДОДАНО
+		return "", fmt.Errorf("неочікуваний статус від GitHub: %d", resp.StatusCode)
 	}
 
-	var release ReleaseData
-	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
-		return "", fmt.Errorf("помилка читання JSON: %v", err)
+	metrics.GitHubAPICalls.WithLabelValues("success").Inc() // ДОДАНО
+
+	var rel Release
+	if err := json.NewDecoder(resp.Body).Decode(&rel); err != nil {
+		return "", err
 	}
 
-	return release.TagName, nil
+	return rel.TagName, nil
 }

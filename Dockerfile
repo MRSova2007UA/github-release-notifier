@@ -18,6 +18,7 @@ WORKDIR /app
 
 COPY --from=builder /app/main .
 COPY --from=builder /app/migrations ./migrations
+COPY --from=builder /app/static ./static
 
 EXPOSE 8081
 

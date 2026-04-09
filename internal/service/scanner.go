@@ -1,7 +1,9 @@
 package service
 
 import (
+	"context"
 	"log"
+	"strings"
 	"time"
 
 	"github-release-notifier/internal/github"
@@ -49,7 +51,17 @@ func (s *Scanner) scan() {
 		repoName := repo["name"]
 		lastSeenTag := repo["last_seen_tag"]
 
-		latestTag, err := s.ghClient.GetLatestRelease(repoName)
+		// Розбиваємо рядок "owner/repo" на дві частини
+		parts := strings.Split(repoName, "/")
+		if len(parts) != 2 {
+			log.Printf("Пропущено %s: неправильний формат у БД", repoName)
+			continue
+		}
+		owner := parts[0]
+		name := parts[1]
+
+		// Передаємо контекст та розділені змінні
+		latestTag, err := s.ghClient.GetLatestRelease(context.Background(), owner, name)
 		if err != nil {
 			log.Printf("Помилка перевірки релізу для %s: %v", repoName, err)
 			continue

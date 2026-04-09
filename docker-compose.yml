@@ -1,15 +1,6 @@
-version: '3.8'
+version: '3.8' # Можеш прибрати, якщо Docker свариться
 
 services:
-  app:
-    build: .
-    ports:
-      - "8081:8081"
-    environment:
-      - DB_URL=postgres://postgres:secret@db:5432/notifier_db?sslmode=disable
-    depends_on:
-      - db
-
   db:
     image: postgres:15-alpine
     environment:
@@ -18,8 +9,20 @@ services:
       POSTGRES_DB: notifier_db
     ports:
       - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
 
-volumes:
-  pgdata:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  app:
+    build: .
+    ports:
+      - "8081:8081"
+    environment:
+      DB_URL: postgres://postgres:secret@db:5432/notifier_db?sslmode=disable
+      REDIS_URL: redis:6379
+      API_KEY: super-secret-key-123
+    depends_on:
+      - db
+      - redis
