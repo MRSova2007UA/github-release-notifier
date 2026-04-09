@@ -1,0 +1,12 @@
+### Тест 1: Перевірка, чи сервер взагалі працює
+GET http://localhost:8081/ping
+
+### Тест 2: Підписка (З ключем)
+POST http://localhost:8081/api/subscribe
+Content-Type: application/json
+X-API-Key: super-secret-key-123
+
+{
+  "email": "test@example.com",
+  "repository": "golang/go"
+}

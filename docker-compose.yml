@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  # Наш Go-додаток
+  app:
+    build: .
+    ports:
+      - "8081:8081"
+    environment:
+      # Вказуємо програмі, що база тепер за адресою 'db', а не 'localhost'
+      - DB_URL=postgres://postgres:secret@db:5432/notifier_db?sslmode=disable
+    depends_on:
+      - db
+
+  # База даних
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: notifier_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

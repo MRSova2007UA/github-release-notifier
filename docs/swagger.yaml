@@ -1,0 +1,50 @@
+openapi: 3.0.0
+info:
+  title: GitHub Release Notifier API
+  description: API для підписки на повідомлення про нові релізи GitHub репозиторіїв.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8081
+    description: Локальний сервер (через Docker)
+
+paths:
+  /api/subscribe:
+    post:
+      summary: Підписатися на релізи репозиторію
+      description: Додає email користувача до списку підписників на вказаний GitHub репозиторій.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - repository
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+                repository:
+                  type: string
+                  example: golang/go
+      responses:
+        '200':
+          description: Успішна підписка
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Успішно підписано на оновлення!
+        '400':
+          description: Неправильний формат запиту або репозиторію (наприклад, немає слеша)
+        '404':
+          description: Репозиторій не знайдено на GitHub
+        '429':
+          description: Перевищено ліміт запитів до GitHub API
+        '500':
+          description: Внутрішня помилка сервера
