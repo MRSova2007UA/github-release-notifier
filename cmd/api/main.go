@@ -21,13 +21,11 @@ import (
 )
 
 func main() {
-	// 1. Читаємо адресу бази з налаштувань Docker, або беремо локальну
 	connStr := os.Getenv("DB_URL")
 	if connStr == "" {
 		connStr = "postgres://postgres:secret@localhost:5432/notifier_db?sslmode=disable"
 	}
 
-	// Підключаємося до БД
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatalf("Помилка підключення до БД: %v", err)
@@ -38,40 +36,29 @@ func main() {
 		log.Fatalf("БД не відповідає: %v", err)
 	}
 
-	// 2. Запуск міграцій
 	runMigrations(db)
 
-	// 3. Ініціалізація всіх компонентів системи
 	dbRepo := repository.NewRepository(db)
-	ghClient := github.NewClient("") // Поки без токена
+	ghClient := github.NewClient("")
 	handler := api.NewHandler(dbRepo, ghClient)
 
-	// Ініціалізація Notifier (пошта) та Scanner (фонова перевірка)
 	emailNotifier := service.NewNotifier("smtp.gmail.com", "587", "tviy_email@gmail.com", "tviy_password")
 	scanner := service.NewScanner(dbRepo, ghClient, emailNotifier, 5*time.Minute)
 
-	// Запускаємо фоновий сканер
 	scanner.Start()
 
-	// 4. Налаштування роутера (HTTP-сервера)
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 
-	// --- МАРШРУТИ ---
-
-	// Публічний роут (без пароля), щоб перевіряти, чи живий сервер
 	r.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("pong"))
 	})
 
-	// Захищена група роутів (тільки з паролем)
 	r.Group(func(r chi.Router) {
-		r.Use(api.APIKeyMiddleware) // Вмикаємо наш захист (Фейсконтроль)
+		r.Use(api.APIKeyMiddleware)
 		r.Post("/api/subscribe", handler.Subscribe)
 	})
-	// ----------------
 
-	// 5. Запуск сервера на порту 8081
 	log.Println("Сервер запущено на http://localhost:8081")
 	if err := http.ListenAndServe(":8081", r); err != nil {
 		log.Fatalf("Помилка запуску сервера: %v", err)

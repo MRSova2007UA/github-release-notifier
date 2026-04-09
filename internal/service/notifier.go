@@ -36,7 +36,6 @@ func (n *Notifier) SendReleaseEmail(emails []string, repoName, newTag string) er
 
 	addr := n.host + ":" + n.port
 
-	// Відправляємо лист (в реальному продакшені краще відправляти кожному окремо або через bcc)
 	err := smtp.SendMail(addr, auth, n.username, emails, msg)
 	if err != nil {
 		return fmt.Errorf("помилка відправки email: %v", err)

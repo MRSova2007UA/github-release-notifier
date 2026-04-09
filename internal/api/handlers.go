@@ -30,7 +30,6 @@ type SubscribeRequest struct {
 
 // Subscribe - функція, яка обробляє запит POST /subscribe
 func (h *Handler) Subscribe(w http.ResponseWriter, r *http.Request) {
-	// 1. Читаємо JSON з тіла запиту
 	var req SubscribeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error": "Неправильний формат JSON"}`, http.StatusBadRequest)
@@ -42,28 +41,23 @@ func (h *Handler) Subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 2. Валідуємо репозиторій через GitHub API (Вимога #6 та #7)
 	status, err := h.ghClient.ValidateRepo(req.Repository)
 	if err != nil {
-		// Якщо помилка (404, 429 тощо), повертаємо її користувачу з правильним статус-кодом
 		http.Error(w, `{"error": "`+err.Error()+`"}`, status)
 		return
 	}
 
-	// 3. Дістаємо останній реліз цього репозиторію
 	latestTag, err := h.ghClient.GetLatestRelease(req.Repository)
 	if err != nil {
 		http.Error(w, `{"error": "Помилка отримання релізу з GitHub"}`, http.StatusInternalServerError)
 		return
 	}
 
-	// 4. Зберігаємо все в нашу Базу Даних
 	if err := h.repo.SubscribeUser(req.Email, req.Repository, latestTag); err != nil {
 		http.Error(w, `{"error": "Помилка збереження в БД"}`, http.StatusInternalServerError)
 		return
 	}
 
-	// 5. Відповідаємо, що все супер
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"message": "Успішно підписано на оновлення!"}`))

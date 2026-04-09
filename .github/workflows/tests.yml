@@ -12,19 +12,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Копіюємо код проєкту на сервер GitHub
       - uses: actions/checkout@v4
 
-      # 2. Встановлюємо Go потрібної версії
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.25'
 
-      # 3. Завантажуємо залежності (бібліотеки)
       - name: Install dependencies
         run: go mod download
 
-      # 4. ЗАПУСКАЄМО НАШІ ТЕСТИ
       - name: Run tests
         run: go test -v ./internal/api/...

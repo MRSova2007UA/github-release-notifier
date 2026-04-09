@@ -8,17 +8,17 @@ import (
 	"time"
 )
 
-// Client — це структура нашого клієнта для GitHub API
+// Client — це структура клієнта для GitHub API
 type Client struct {
 	httpClient *http.Client
-	token      string // Знадобиться для збільшення лімітів
+	token      string
 }
 
 // NewClient створює новий екземпляр клієнта
 func NewClient(token string) *Client {
 	return &Client{
 		httpClient: &http.Client{
-			Timeout: 10 * time.Second, // Щоб запити не висіли вічно
+			Timeout: 10 * time.Second,
 		},
 		token: token,
 	}
@@ -26,7 +26,6 @@ func NewClient(token string) *Client {
 
 // ValidateRepo перевіряє правильність формату (owner/repo) та існування репозиторію
 func (c *Client) ValidateRepo(repoName string) (int, error) {
-	// Перевіряємо формат: має бути рівно дві частини, розділені слешем
 	parts := strings.Split(repoName, "/")
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 		return http.StatusBadRequest, fmt.Errorf("неправильний формат, очікується owner/repo")
@@ -38,7 +37,6 @@ func (c *Client) ValidateRepo(repoName string) (int, error) {
 		return http.StatusInternalServerError, err
 	}
 
-	// Якщо є токен — додаємо його для авторизації (щоб не зловити ліміт 60 запитів)
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
 	}
@@ -49,7 +47,6 @@ func (c *Client) ValidateRepo(repoName string) (int, error) {
 	}
 	defer resp.Body.Close()
 
-	// Обробка помилок зовнішнього API (Вимога #7)
 	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusForbidden {
 		return http.StatusTooManyRequests, fmt.Errorf("перевищено ліміт запитів до GitHub API")
 	}
@@ -70,7 +67,7 @@ type ReleaseData struct {
 	TagName string `json:"tag_name"`
 }
 
-// GetLatestRelease дістає останній тег релізу (наприклад, "v1.2.3")
+// GetLatestRelease дістає останній тег релізу
 func (c *Client) GetLatestRelease(repoName string) (string, error) {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", repoName)
 	req, err := http.NewRequest("GET", url, nil)
@@ -89,7 +86,6 @@ func (c *Client) GetLatestRelease(repoName string) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		// Репозиторій є, але релізів у ньому ще немає
 		return "", nil
 	}
 

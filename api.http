@@ -1,7 +1,7 @@
 ### Тест 1: Перевірка, чи сервер взагалі працює
 GET http://localhost:8081/ping
 
-### Тест 2: Підписка (З ключем)
+### Тест 2: Підписка
 POST http://localhost:8081/api/subscribe
 Content-Type: application/json
 X-API-Key: super-secret-key-123
