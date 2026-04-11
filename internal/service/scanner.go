@@ -51,7 +51,6 @@ func (s *Scanner) scan() {
 		repoName := repo["name"]
 		lastSeenTag := repo["last_seen_tag"]
 
-		// Розбиваємо рядок "owner/repo" на дві частини
 		parts := strings.Split(repoName, "/")
 		if len(parts) != 2 {
 			log.Printf("Пропущено %s: неправильний формат у БД", repoName)
@@ -60,7 +59,6 @@ func (s *Scanner) scan() {
 		owner := parts[0]
 		name := parts[1]
 
-		// Передаємо контекст та розділені змінні
 		latestTag, err := s.ghClient.GetLatestRelease(context.Background(), owner, name)
 		if err != nil {
 			log.Printf("Помилка перевірки релізу для %s: %v", repoName, err)

@@ -5,14 +5,14 @@ info:
     API для підписки на повідомлення про нові релізи GitHub репозиторіїв.
     
     Extra Features (Реалізовано):
-    * gRPC & REST: Сервіс реалізовано як гібридний моноліт. Він обробляє як REST, так і gRPC запити на одному порту (8081) за допомогою мультиплексора cmux.
+    * gRPC & REST: Сервіс реалізовано як гібридний моноліт. Він обробляє як REST, так і gRPC запити на одному порту (8080) за допомогою мультиплексора cmux.
     * Redis Cache: Запити до GitHub API кешуються в Redis з TTL 10 хвилин.
     * Prometheus Metrics: Доступний ендпоїнт `/metrics` для збору телеметрії.
   version: 1.0.0
 servers:
   - url: https://github-release-notifier-3.onrender.com
     description: Продакшен сервер (Render)
-  - url: http://localhost:8081
+  - url: http://localhost:8080
     description: Локальний сервер (через Docker)
 components:
   securitySchemes:

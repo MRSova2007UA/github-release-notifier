@@ -39,7 +39,6 @@ func main() {
 	}
 	defer db.Close()
 
-	// Перевірка доступності бази даних з механізмом повторних спроб (Retry)
 	var pingErr error
 	for i := 0; i < 5; i++ {
 		pingErr = db.Ping()
@@ -55,10 +54,8 @@ func main() {
 	}
 	log.Println("Успішне підключення до PostgreSQL")
 
-	// Автоматичний запуск міграцій структури бази даних
 	runMigrations(db)
 
-	// Налаштування та підключення до клієнта Redis для кешування
 	redisURL := os.Getenv("REDIS_URL")
 	if redisURL == "" {
 		redisURL = "localhost:6379"
@@ -73,12 +70,10 @@ func main() {
 	}
 	log.Println("Успішне підключення до Redis")
 
-	// Ініціалізація шару репозиторію та зовнішніх клієнтів
 	dbRepo := repository.NewRepository(db)
 	githubToken := os.Getenv("GITHUB_TOKEN")
 	ghClient := github.NewClient(githubToken, rdb)
 
-	// Ініціалізація хендлерів API
 	handler := api.NewHandler(dbRepo, ghClient)
 
 	// Налаштування системи сповіщень через SMTP
@@ -86,26 +81,13 @@ func main() {
 	smtpPass := os.Getenv("SMTP_PASS")
 	emailNotifier := service.NewNotifier("smtp.gmail.com", "587", smtpUser, smtpPass)
 
-	// --- ДОДАЙ ОСЬ ЦЕЙ БЛОК ДЛЯ ТЕСТУ ---
-	log.Println("Спроба відправити тестовий лист при запуску...")
-	errTest := emailNotifier.SendReleaseEmail([]string{"daniil17112007@gmail.com"}, "test/repo", "v1.0.0-test")
-	if errTest != nil {
-		log.Printf("❌ ПОМИЛКА ТЕСТОВОГО ЛИСТА: %v\n", errTest)
-	} else {
-		log.Println("✅ ТЕСТОВИЙ ЛИСТ УСПІШНО ВІДПРАВЛЕНО!")
-	}
-	// ------------------------------------
-
-	// Запуск фонового сканера репозиторіїв GitHub
 	scanner := service.NewScanner(dbRepo, ghClient, emailNotifier, 5*time.Minute)
 	scanner.Start()
 
-	// Конфігурація HTTP роутера Chi
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	// Визначення маршрутів (Endpoints)
 	r.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("pong"))
 	})
@@ -116,34 +98,28 @@ func main() {
 
 	r.Handle("/metrics", promhttp.Handler())
 
-	// Група маршрутів, захищених API-ключем
 	r.Group(func(r chi.Router) {
 		r.Use(api.APIKeyMiddleware)
 		r.Post("/api/subscribe", handler.Subscribe)
 	})
 
-	// Налаштування мультиплексора (cmux) для спільного використання порту 8081
-	l, err := net.Listen("tcp", ":8081")
+	l, err := net.Listen("tcp", ":8080")
 	if err != nil {
-		log.Fatalf("Помилка прослуховування порту 8081: %v", err)
+		log.Fatalf("Помилка прослуховування порту 8080: %v", err)
 	}
 
 	m := cmux.New(l)
 
-	// Розподіл трафіку: gRPC (за заголовком content-type) та інший HTTP трафік
 	grpcL := m.Match(cmux.HTTP2HeaderField("content-type", "application/grpc"))
 	httpL := m.Match(cmux.Any())
 
-	// Ініціалізація та реєстрація gRPC сервера
 	grpcServer := grpc.NewServer()
 	grpcapi.RegisterNotifierServiceServer(grpcServer, grpcapi.NewGrpcHandler(dbRepo))
 
-	// Налаштування стандартного HTTP сервера
 	httpServer := &http.Server{
 		Handler: r,
 	}
 
-	// Запуск серверів в окремих горутинах
 	go func() {
 		log.Println("gRPC обробник готовий до роботи")
 		if err := grpcServer.Serve(grpcL); err != nil {
@@ -158,8 +134,7 @@ func main() {
 		}
 	}()
 
-	// Запуск мультиплексора для обробки вхідних з'єднань
-	log.Println("Гібридний сервер (REST + gRPC) запущено на порту 8081")
+	log.Println("Гібридний сервер (REST + gRPC) запущено на порту 8080")
 	if err := m.Serve(); err != nil {
 		log.Fatalf("Помилка мультиплексора: %v", err)
 	}

@@ -43,7 +43,6 @@ func (h *Handler) Subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Розбиваємо рядок "owner/repo" на дві частини
 	parts := strings.Split(req.Repository, "/")
 	if len(parts) != 2 {
 		http.Error(w, `{"error": "Неправильний формат репозиторію. Очікується owner/repo (наприклад, golang/go)"}`, http.StatusBadRequest)
@@ -52,7 +51,6 @@ func (h *Handler) Subscribe(w http.ResponseWriter, r *http.Request) {
 	owner := parts[0]
 	repoName := parts[1]
 
-	// Перевіряємо, чи існує репозиторій (з використанням Redis кешу та контексту)
 	exists, err := h.ghClient.CheckRepoExists(r.Context(), owner, repoName)
 	if err != nil {
 		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
@@ -63,20 +61,17 @@ func (h *Handler) Subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Отримуємо останній реліз
 	latestTag, err := h.ghClient.GetLatestRelease(r.Context(), owner, repoName)
 	if err != nil {
 		http.Error(w, `{"error": "Помилка отримання релізу з GitHub"}`, http.StatusInternalServerError)
 		return
 	}
 
-	// Зберігаємо в базу даних
 	if err := h.repo.SubscribeUser(req.Email, req.Repository, latestTag); err != nil {
 		http.Error(w, `{"error": "Помилка збереження в БД"}`, http.StatusInternalServerError)
 		return
 	}
 
-	// Рахуємо успішну підписку в Prometheus (зверни увагу, слешів тут немає)
 	metrics.TotalSubscriptions.Inc()
 
 	w.Header().Set("Content-Type", "application/json")

@@ -16,10 +16,10 @@ X-API-Key: super-secret-key-123
 ### ---------------------------------------------------------
 
 ### Локальний Ping
-GET http://localhost:8081/ping
+GET http://localhost:8080/ping
 
 ### Локальна підписка
-POST http://localhost:8081/api/subscribe
+POST http://localhost:8080/api/subscribe
 Content-Type: application/json
 X-API-Key: super-secret-key-123
 
