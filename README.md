@@ -39,7 +39,7 @@
 
 Приклад cURL запиту:
 ```bash
-curl -X POST http://localhost:8081/api/subscribe \
+curl -X POST http://localhost:8080/api/subscribe \
   -H "Content-Type: application/json" \
   -H "X-API-Key: my-secret-key" \
   -d '{"email": "user@example.com", "repository": "golang/go"}'
@@ -49,3 +49,7 @@ curl -X POST http://localhost:8081/api/subscribe \
 Проєкт покритий Table-Driven юніт-тестами. Запуск:
 ```bash
 go test -v ./...
+```
+
+### Важливе зауваження щодо Live Demo (Email-сповіщення)
+Жива демо-версія сервісу розгорнута на безкоштовному тарифі хмарного провайдера **Render**. З міркувань безпеки та захисту від спаму, безкоштовний тариф Render [повністю блокує вихідний SMTP-трафік (порт 587)](https://render.com/docs/free#outbound-email-not-allowed). Через це при тестуванні підписки на живому сайті email-повідомлення **не будуть доставлені**. **Проте логіка відправки повністю робоча!** Щоб перевірити роботу поштових сповіщень, будь ласка, запустіть проєкт локально (через Docker або Go). Локальний запуск не має таких мережевих обмежень, і листи відправляються миттєво.
