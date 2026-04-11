@@ -88,7 +88,7 @@ func main() {
 
 	// --- ДОДАЙ ОСЬ ЦЕЙ БЛОК ДЛЯ ТЕСТУ ---
 	log.Println("Спроба відправити тестовий лист при запуску...")
-	errTest := emailNotifier.SendReleaseEmail([]string{"ТУТ_ПОШТА_ДРУГА_АБО_ТВОЯ@gmail.com"}, "test/repo", "v1.0.0-test")
+	errTest := emailNotifier.SendReleaseEmail([]string{"daniil17112007@gmail.com"}, "test/repo", "v1.0.0-test")
 	if errTest != nil {
 		log.Printf("❌ ПОМИЛКА ТЕСТОВОГО ЛИСТА: %v\n", errTest)
 	} else {
