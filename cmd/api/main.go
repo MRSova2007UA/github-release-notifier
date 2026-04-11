@@ -86,6 +86,16 @@ func main() {
 	smtpPass := os.Getenv("SMTP_PASS")
 	emailNotifier := service.NewNotifier("smtp.gmail.com", "587", smtpUser, smtpPass)
 
+	// --- ДОДАЙ ОСЬ ЦЕЙ БЛОК ДЛЯ ТЕСТУ ---
+	log.Println("Спроба відправити тестовий лист при запуску...")
+	errTest := emailNotifier.SendReleaseEmail([]string{"ТУТ_ПОШТА_ДРУГА_АБО_ТВОЯ@gmail.com"}, "test/repo", "v1.0.0-test")
+	if errTest != nil {
+		log.Printf("❌ ПОМИЛКА ТЕСТОВОГО ЛИСТА: %v\n", errTest)
+	} else {
+		log.Println("✅ ТЕСТОВИЙ ЛИСТ УСПІШНО ВІДПРАВЛЕНО!")
+	}
+	// ------------------------------------
+
 	// Запуск фонового сканера репозиторіїв GitHub
 	scanner := service.NewScanner(dbRepo, ghClient, emailNotifier, 5*time.Minute)
 	scanner.Start()
