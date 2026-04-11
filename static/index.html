@@ -42,7 +42,6 @@
         const messageDiv = document.getElementById('message');
         const btn = document.querySelector('button');
 
-        // Показуємо завантаження
         btn.textContent = 'Відправка...';
         btn.disabled = true;
         messageDiv.className = 'mt-4 text-center text-sm font-medium hidden p-3 rounded';
@@ -52,7 +51,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-API-Key': 'super-secret-key-123' // Наш ключ
+                    'X-API-Key': 'super-secret-key-123'
                 },
                 body: JSON.stringify({ email, repository })
             });

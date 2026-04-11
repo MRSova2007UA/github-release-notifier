@@ -28,7 +28,6 @@ import (
 )
 
 func main() {
-	// Ініціалізація підключення до бази даних PostgreSQL
 	connStr := os.Getenv("DB_URL")
 	if connStr == "" {
 		connStr = "postgres://postgres:secret@localhost:5432/notifier_db?sslmode=disable"
