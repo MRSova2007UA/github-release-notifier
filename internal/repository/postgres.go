@@ -17,15 +17,12 @@ func NewRepository(db *sql.DB) *Repository {
 
 // SubscribeUser зберігає email та репозиторій, а потім зв'язує їх
 func (r *Repository) SubscribeUser(email, repoName, latestTag string) error {
-	// Починаємо транзакцію (щоб або все збереглося, або нічого)
 	tx, err := r.db.Begin()
 	if err != nil {
 		return err
 	}
-	// Якщо щось піде не так, транзакція відкотиться
 	defer tx.Rollback()
 
-	// 1. Додаємо користувача (або отримуємо його ID, якщо він вже є)
 	var subscriberID int
 	err = tx.QueryRow(`
 		INSERT INTO subscribers (email) 
@@ -36,7 +33,6 @@ func (r *Repository) SubscribeUser(email, repoName, latestTag string) error {
 		return fmt.Errorf("помилка збереження підписника: %v", err)
 	}
 
-	// 2. Додаємо репозиторій (або отримуємо його ID, якщо він вже є)
 	var repoID int
 	err = tx.QueryRow(`
 		INSERT INTO repositories (name, last_seen_tag) 
@@ -47,7 +43,6 @@ func (r *Repository) SubscribeUser(email, repoName, latestTag string) error {
 		return fmt.Errorf("помилка збереження репозиторію: %v", err)
 	}
 
-	// 3. Зв'язуємо їх у таблиці subscriptions (ігноруємо помилку, якщо підписка вже існує)
 	_, err = tx.Exec(`
 		INSERT INTO subscriptions (subscriber_id, repository_id) 
 		VALUES ($1, $2) 
@@ -56,7 +51,6 @@ func (r *Repository) SubscribeUser(email, repoName, latestTag string) error {
 		return fmt.Errorf("помилка збереження підписки: %v", err)
 	}
 
-	// Підтверджуємо транзакцію
 	return tx.Commit()
 }
 

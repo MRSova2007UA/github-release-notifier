@@ -11,6 +11,19 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: secret
+          POSTGRES_DB: notifier_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
       redis:
         image: redis:7-alpine
         ports:
@@ -35,4 +48,9 @@ jobs:
       - name: Run tests
         env:
           REDIS_URL: localhost:6379
-        run: go test -v ./internal/api/...
+          DB_URL: postgres://postgres:secret@localhost:5432/notifier_db?sslmode=disable
+          API_KEY: test-secret-key
+          GITHUB_TOKEN: dummy-token
+          SMTP_USER: test@gmail.com
+          SMTP_PASS: test-pass
+        run: go test -v ./...

@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package grpcapi;
 
-// Вказуємо шлях, куди згенерується Go-код
 option go_package = "github-release-notifier/internal/grpcapi";
 
 service NotifierService {

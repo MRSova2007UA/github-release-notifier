@@ -31,19 +31,21 @@
 2. Склонуйте проєкт та виконайте в терміналі:
    ```bash
    docker-compose up -d --build
+   ```
 3. Сервер запуститься на порту 8081.
 
 ## Авторизація та Використання
 Для виконання запитів до `POST /api/subscribe` необхідно передавати заголовок авторизації.
 
-cURL запиту:
-``
+Приклад cURL запиту:
+```bash
 curl -X POST http://localhost:8081/api/subscribe \
--H "Content-Type: application/json" \
--H "X-API-Key: my-secret-key" \
--d '{"email": Приклад "user@example.com", "repository": "golang/go"}'``
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: my-secret-key" \
+  -d '{"email": "user@example.com", "repository": "golang/go"}'
+```
 
 ## Тестування
 Проєкт покритий Table-Driven юніт-тестами. Запуск:
 ```bash
-    go test -v ./...
+go test -v ./...

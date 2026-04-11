@@ -1,4 +1,4 @@
-version: '3.8' # Можеш прибрати, якщо Docker свариться
+version: '3.8'
 
 services:
   db:
@@ -23,6 +23,9 @@ services:
       DB_URL: postgres://postgres:secret@db:5432/notifier_db?sslmode=disable
       REDIS_URL: redis:6379
       API_KEY: super-secret-key-123
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
     depends_on:
       - db
       - redis
