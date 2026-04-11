@@ -4,12 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"time"
 
 	"github-release-notifier/internal/api"
 	"github-release-notifier/internal/github"
+	"github-release-notifier/internal/grpcapi" // ДОДАНО: Твій gRPC пакет
 	"github-release-notifier/internal/repository"
 	"github-release-notifier/internal/service"
 
@@ -21,6 +23,8 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
+	"github.com/soheilhy/cmux" // ДОДАНО: Мультиплексор
+	"google.golang.org/grpc"   // ДОДАНО: Бібліотека gRPC
 )
 
 func main() {
@@ -53,7 +57,7 @@ func main() {
 
 	runMigrations(db)
 
-	// 1. Читаємо адресу Redis з оточення (або ставимо локальну для тестів)
+	// 1. Читаємо адресу Redis з оточення
 	redisURL := os.Getenv("REDIS_URL")
 	if redisURL == "" {
 		redisURL = "localhost:6379"
@@ -72,13 +76,11 @@ func main() {
 
 	dbRepo := repository.NewRepository(db)
 
-	// --- ОСЬ ТУТ ГОЛОВНА ЗМІНА ---
 	// 4. Читаємо GitHub токен з налаштувань Render
 	githubToken := os.Getenv("GITHUB_TOKEN")
 
 	// Передаємо прочитаний токен та клієнт Redis
 	ghClient := github.NewClient(githubToken, rdb)
-	// -----------------------------
 
 	handler := api.NewHandler(dbRepo, ghClient)
 
@@ -87,6 +89,7 @@ func main() {
 
 	scanner.Start()
 
+	// --- Налаштування REST (Chi) ---
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 
@@ -105,9 +108,55 @@ func main() {
 		r.Post("/api/subscribe", handler.Subscribe)
 	})
 
-	log.Println("Сервер запущено на порту 8081")
-	if err := http.ListenAndServe(":8081", r); err != nil {
-		log.Fatalf("Помилка запуску сервера: %v", err)
+	// =====================================================================
+	// МУЛЬТИПЛЕКСУВАННЯ (REST + gRPC НА ОДНОМУ ПОРТУ)
+	// =====================================================================
+
+	// 1. Створюємо основний слухач (Listener) на порту 8081
+	l, err := net.Listen("tcp", ":8081")
+	if err != nil {
+		log.Fatalf("Помилка створення слухача: %v", err)
+	}
+
+	// 2. Створюємо мультиплексор
+	m := cmux.New(l)
+
+	// 3. Правила сортування трафіку:
+	// Якщо це HTTP/2 і в заголовках є application/grpc -> це gRPC
+	grpcL := m.Match(cmux.HTTP2HeaderField("content-type", "application/grpc"))
+	// Усе інше (звичайні запити) відправляємо в наш HTTP/REST роутер
+	httpL := m.Match(cmux.Any())
+
+	// 4. Ініціалізуємо gRPC сервер
+	grpcServer := grpc.NewServer()
+	// Реєструємо наш сервіс. Передаємо dbRepo для роботи з базою
+	grpcapi.RegisterNotifierServiceServer(grpcServer, grpcapi.NewGrpcHandler(dbRepo))
+
+	// 5. Ініціалізуємо HTTP сервер (з нашим Chi роутером)
+	httpServer := &http.Server{
+		Handler: r,
+	}
+
+	// 6. Запускаємо gRPC сервер у фоні
+	go func() {
+		log.Println("gRPC-обробник готовий приймати запити")
+		if err := grpcServer.Serve(grpcL); err != nil {
+			log.Printf("gRPC сервер зупинився: %v", err)
+		}
+	}()
+
+	// 7. Запускаємо HTTP сервер у фоні
+	go func() {
+		log.Println("REST-обробник готовий приймати запити")
+		if err := httpServer.Serve(httpL); err != nil {
+			log.Printf("HTTP сервер зупинився: %v", err)
+		}
+	}()
+
+	// 8. Запускаємо сам мультиплексор (Він тримає програму відкритою)
+	log.Println("🔥 Гібридний сервер (REST + gRPC) запущено на порту 8081")
+	if err := m.Serve(); err != nil {
+		log.Fatalf("Помилка мультиплексора: %v", err)
 	}
 }
 

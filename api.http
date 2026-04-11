@@ -1,8 +1,8 @@
 ### 1. Перевірка зв'язку з сервером (Ping)
-GET https://github-release-notifier-3.onrender.com/ping
+GET https://github-release-notifier-2.onrender.com/ping
 
 ### 2. Підписка на релізи (Production)
-POST https://github-release-notifier-3.onrender.com/api/subscribe
+POST https://github-release-notifier-2.onrender.com//api/subscribe
 Content-Type: application/json
 X-API-Key: super-secret-key-123
 

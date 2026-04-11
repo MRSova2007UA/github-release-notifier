@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package grpcapi;
+
+// Вказуємо шлях, куди згенерується Go-код
+option go_package = "github-release-notifier/internal/grpcapi";
+
+service NotifierService {
+  rpc Subscribe (SubscribeRequest) returns (SubscribeResponse);
+}
+
+message SubscribeRequest {
+  string email = 1;
+  string repository = 2;
+}
+
+message SubscribeResponse {
+  string message = 1;
+}
