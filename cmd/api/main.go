@@ -72,8 +72,14 @@ func main() {
 
 	dbRepo := repository.NewRepository(db)
 
-	// ВАЖЛИВО: Тепер ми передаємо rdb (клієнт Redis) у GitHub клієнт
-	ghClient := github.NewClient("", rdb)
+	// --- ОСЬ ТУТ ГОЛОВНА ЗМІНА ---
+	// 4. Читаємо GitHub токен з налаштувань Render
+	githubToken := os.Getenv("GITHUB_TOKEN")
+
+	// Передаємо прочитаний токен та клієнт Redis
+	ghClient := github.NewClient(githubToken, rdb)
+	// -----------------------------
+
 	handler := api.NewHandler(dbRepo, ghClient)
 
 	emailNotifier := service.NewNotifier("smtp.gmail.com", "587", "tviy_email@gmail.com", "tviy_password")
@@ -99,7 +105,7 @@ func main() {
 		r.Post("/api/subscribe", handler.Subscribe)
 	})
 
-	log.Println("Сервер запущено на http://localhost:8081")
+	log.Println("Сервер запущено на порту 8081")
 	if err := http.ListenAndServe(":8081", r); err != nil {
 		log.Fatalf("Помилка запуску сервера: %v", err)
 	}

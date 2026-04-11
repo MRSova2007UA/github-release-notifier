@@ -4,14 +4,23 @@ info:
   description: API для підписки на повідомлення про нові релізи GitHub репозиторіїв.
   version: 1.0.0
 servers:
+  - url: https://github-release-notifier-3.onrender.com
+    description: Продакшен сервер (Render)
   - url: http://localhost:8081
     description: Локальний сервер (через Docker)
-
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
 paths:
   /api/subscribe:
     post:
       summary: Підписатися на релізи репозиторію
       description: Додає email користувача до списку підписників на вказаний GitHub репозиторій.
+      security:
+        - ApiKeyAuth: []
       requestBody:
         required: true
         content:
@@ -42,6 +51,8 @@ paths:
                     example: Успішно підписано на оновлення!
         '400':
           description: Неправильний формат запиту або репозиторію (наприклад, немає слеша)
+        '401':
+          description: Неавторизовано (відсутній або неправильний заголовок X-API-Key)
         '404':
           description: Репозиторій не знайдено на GitHub
         '429':

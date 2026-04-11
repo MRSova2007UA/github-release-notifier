@@ -1,12 +1,29 @@
-### Тест 1: Перевірка, чи сервер взагалі працює
-GET http://localhost:8081/ping
+### 1. Перевірка зв'язку з сервером (Ping)
+GET https://github-release-notifier-3.onrender.com/ping
 
-### Тест 2: Підписка
-POST http://localhost:8081/api/subscribe
+### 2. Підписка на релізи (Production)
+POST https://github-release-notifier-3.onrender.com/api/subscribe
 Content-Type: application/json
 X-API-Key: super-secret-key-123
 
 {
   "email": "test@example.com",
   "repository": "golang/go"
+}
+
+### ---------------------------------------------------------
+### ЛОКАЛЬНІ ТЕСТИ (для розробки)
+### ---------------------------------------------------------
+
+### Локальний Ping
+GET http://localhost:8081/ping
+
+### Локальна підписка
+POST http://localhost:8081/api/subscribe
+Content-Type: application/json
+X-API-Key: super-secret-key-123
+
+{
+  "email": "local-test@example.com",
+  "repository": "gin-gonic/gin"
 }
