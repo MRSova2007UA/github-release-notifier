@@ -1,7 +1,13 @@
 openapi: 3.0.0
 info:
   title: GitHub Release Notifier API
-  description: API для підписки на повідомлення про нові релізи GitHub репозиторіїв.
+  description: |
+    API для підписки на повідомлення про нові релізи GitHub репозиторіїв.
+    
+    Extra Features (Реалізовано):
+    * gRPC & REST: Сервіс реалізовано як гібридний моноліт. Він обробляє як REST, так і gRPC запити на одному порту (8081) за допомогою мультиплексора cmux.
+    * Redis Cache: Запити до GitHub API кешуються в Redis з TTL 10 хвилин.
+    * Prometheus Metrics: Доступний ендпоїнт `/metrics` для збору телеметрії.
   version: 1.0.0
 servers:
   - url: https://github-release-notifier-3.onrender.com
@@ -59,3 +65,26 @@ paths:
           description: Перевищено ліміт запитів до GitHub API
         '500':
           description: Внутрішня помилка сервера
+  /metrics:
+    get:
+      summary: Отримати метрики Prometheus
+      description: Ендпоїнт для збору системних метрик та кастомних лічильників (наприклад, кількості запитів до GitHub API).
+      responses:
+        '200':
+          description: Успішне отримання метрик
+          content:
+            text/plain:
+              schema:
+                type: string
+  /ping:
+    get:
+      summary: Перевірка статусу сервера (Healthcheck)
+      description: Простий ендпоїнт для перевірки працездатності сервера.
+      responses:
+        '200':
+          description: Сервер працює
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: pong
